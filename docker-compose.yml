@@ -20,3 +20,9 @@ services:
       - ./data:/opt/xiaozhi-esp32-server/data
       # 模型文件挂接，很重要
       - ./models/SenseVoiceSmall/model.pt:/opt/xiaozhi-esp32-server/models/SenseVoiceSmall/model.pt
+      # 将ESP32工程的main目录挂载到Server容器中，便于联调/共享资源
+      - /home/tester/esp/xiaozhi-esp32_r2/main:/opt/xiaozhi-esp32-server/esp32-main
+      # 挂载修改后的设备MCP处理器文件，使withMRTools参数生效
+      - ./main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/device_mcp/mcp_handler.py
+      # 挂载修改后的MCP接入点处理器文件
+      - ./main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py

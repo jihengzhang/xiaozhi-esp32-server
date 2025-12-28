@@ -127,3 +127,169 @@ CONFIG_OTA_URL="https://api.tenclass.net/xiaozhi/ota/"
 - GPU discovery失败是正常的（系统无GPU或未配置）
 - 需要配置正确的LLM API key才能使用对话功能
 
+---
+
+## MRTool MCP工具发现调试记录 (2025-12-28)
+
+### 问题描述
+
+在ESP32设备端实现了 MRTool（MR专用工具），并在设备端代码中通过 `McpServer::AddMROnlyTools()` 进行了注册。但服务端始终无法发现该工具，函数列表中看不到 `mr.start_examination`。
+
+**设备端日志显示：**
+```
+当前支持的函数列表: ['get_news_from_newsnow', 'play_music', 'get_lunar', 'get_weather', 
+                      'change_role', 'handle_exit_intent', 'self_get_device_status', 
+                      'self_audio_speaker_set_volume', 'self_screen_set_brightness', 
+                      'self_screen_set_theme', 'self_camera_take_photo', 
+                      'self_system_reconfigure_wifi']
+```
+
+注意：**看不到 `mr.start_examination`**
+
+### 根本原因分析
+
+#### 1. 工具分类体系
+
+设备端 (`mcp_server.cc`) 中的工具被分为三类：
+
+| 工具类型 | 注册函数 | 过滤参数 | 备注 |
+|---------|--------|--------|------|
+| **普通工具** | `AddCommonTools()` | 无过滤 | 始终返回（如 `self.get_device_status`） |
+| **User-only工具** | `AddUserOnlyTools()` | `withUserTools` | 需要服务端请求此参数 |
+| **MR-only工具** | `AddMROnlyTools()` | `withMRTools` | 需要服务端请求此参数 |
+
+#### 2. 设备端工具过滤逻辑
+
+在 [mcp_server.cc](../esp/xiaozhi-esp32_r2/main/mcp_server.cc) 的 `GetToolsList()` 函数中：
+
+```cpp
+void McpServer::GetToolsList(int id, const std::string& cursor, 
+                             bool list_user_only_tools, bool list_mr_only_tools) {
+    // ... 遍历所有工具 ...
+    
+    // 过滤逻辑：
+    if (!list_user_only_tools && (*it)->user_only()) {
+        ++it;
+        continue;  // 跳过user-only工具（除非请求了withUserTools）
+    }
+    if (!list_mr_only_tools && (*it)->mr_only()) {
+        ++it;
+        continue;  // 跳过mr-only工具（除非请求了withMRTools）
+    }
+}
+```
+
+**关键：** 如果 `tools/list` 请求中没有 `withMRTools: true` 参数，MR-only 工具会被自动过滤掉。
+
+#### 3. 服务端请求缺陷
+
+服务端在发送 `tools/list` 请求时，没有包含 `withMRTools` 和 `withUserTools` 参数：
+
+**旧代码** (device_mcp/mcp_handler.py)：
+```python
+async def send_mcp_tools_list_request(conn):
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        # 缺少 params 字段！
+    }
+```
+
+**同样的问题** 也存在于 mcp_endpoint_handler.py 中。
+
+### 解决方案
+
+#### Step 1: 更新服务端请求参数
+
+修改 [device_mcp/mcp_handler.py](../main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py)：
+
+```python
+async def send_mcp_tools_list_request(conn):
+    """发送MCP工具列表请求"""
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {
+            "withMRTools": True,      # 请求包含MR-only工具
+            "withUserTools": True     # 请求包含user-only工具
+        }
+    }
+```
+
+同时更新 `send_mcp_tools_list_continue_request()` 函数，在 cursor 分页请求中也要包含这两个参数。
+
+修改 [mcp_endpoint/mcp_endpoint_handler.py](../main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py)，方式完全相同。
+
+#### Step 2: 修改Docker Compose配置
+
+在 [docker-compose.yml](docker-compose.yml) 中添加 volume 挂载，使修改后的 Python 文件立即生效：
+
+```yaml
+volumes:
+  # ... 其他挂载 ...
+  # 挂载修改后的设备MCP处理器文件，使withMRTools参数生效
+  - ./main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/device_mcp/mcp_handler.py
+  # 挂载修改后的MCP接入点处理器文件
+  - ./main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py
+```
+
+#### Step 3: 重启服务
+
+```bash
+cd /home/tester/AI_Tools/xiaozhi-esp32-server
+docker compose down
+docker compose up -d
+```
+
+验证修改已应用：
+
+```bash
+docker compose exec xiaozhi-esp32-server grep -A 10 "def send_mcp_tools_list_request" \
+  /opt/xiaozhi-esp32-server/core/providers/tools/device_mcp/mcp_handler.py
+```
+
+应该看到 `"withMRTools": True` 参数。
+
+### 修改文件清单
+
+| 文件 | 修改内容 | 目的 |
+|------|--------|------|
+| [device_mcp/mcp_handler.py](../main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py) | `send_mcp_tools_list_request()` 添加 params | 请求MR工具 |
+| [device_mcp/mcp_handler.py](../main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py) | `send_mcp_tools_list_continue_request()` 添加 params | 分页请求中也包含参数 |
+| [mcp_endpoint/mcp_endpoint_handler.py](../main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py) | `send_mcp_endpoint_tools_list()` 添加 params | 请求MR工具 |
+| [mcp_endpoint/mcp_endpoint_handler.py](../main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py) | `send_mcp_endpoint_tools_list_continue()` 添加 params | 分页请求中也包含参数 |
+| [docker-compose.yml](docker-compose.yml) | 添加 volume 挂载 | 应用代码修改到容器 |
+| [data/.config.yaml](data/.config.yaml) | 添加 mcp_endpoint 配置和注释 | 文档化MCP配置 |
+
+### 关键学习点
+
+1. **工具过滤是对称的**
+   - user-only 和 mr-only 工具的过滤机制完全相同
+   - 都需要服务端在 `tools/list` 请求中显式声明参数
+
+2. **为什么普通工具之前工作**
+   - `self.get_device_status`、`self.audio_speaker.set_volume` 等都是**普通工具**，无任何标记
+   - 普通工具不受过滤影响，始终被返回
+   - 这就是为什么之前没有察觉到这个问题
+
+3. **Docker volume 挂载的重要性**
+   - 修改源代码文件后，需要 volume 挂载才能让容器内的代码生效
+   - 否则需要重新构建镜像
+
+### 验证步骤
+
+设备连接后，查看服务日志：
+
+```bash
+docker compose logs xiaozhi-esp32-server | grep "当前支持的函数列表"
+```
+
+应该包含 `mr.start_examination` 或其他 mr-only 工具。
+
+### 参考链接
+
+- [MCP规范 - tools/list](https://modelcontextprotocol.io/specification/2024-11-05)
+- [ESP32 MCP服务器实现](../esp/xiaozhi-esp32_r2/main/mcp_server.cc)
+- [设备端MR工具定义](../esp/xiaozhi-esp32_r2/main/MR_Tool.h)

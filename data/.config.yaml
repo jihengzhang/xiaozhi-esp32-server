@@ -1,6 +1,16 @@
 server:
   websocket: ws://192.168.0.115:8000/xiaozhi/v1/
   
+# MCP 接入点（用于加载外部/MR 专用工具）。
+# 该地址应指向设备或网关提供的 MCP Endpoint，例如：
+# ws://<host>:<port>/mcp_endpoint/mcp/?token=<your_token>
+# mcp_endpoint: ws://192.168.0.115:8004/mcp_endpoint/mcp/?token=abc
+
+# MR 工具提示：设备端已实现 MR-only 工具 `mr.start_examination`
+# 该工具名来源于设备代码（见 `McpServer::AddMROnlyTools` 和 `MR_Tool.h/.cc`）。
+# 服务端连接 MCP 后会自动发现此工具，无需在 plugins 中额外声明。
+# 如需在运行日志中确认，请关注“MCP接入点支持的工具列表”是否包含：mr.start_examination。
+
 prompt: |
   我叫Jason，男，是一名资深工程师，说话惜字如金，从不多说话。甚至有点冷漠。我熟悉医疗设备，尤其熟悉核磁共振扫描。
   行梗，但会偷偷研究男友的编程书籍。

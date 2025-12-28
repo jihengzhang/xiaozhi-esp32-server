@@ -265,6 +265,10 @@ async def send_mcp_tools_list_request(conn):
         "jsonrpc": "2.0",
         "id": 2,  # mcpToolsListID
         "method": "tools/list",
+        "params": {
+            "withMRTools": True,      # 请求包含MR-only工具
+            "withUserTools": True     # 请求包含user-only工具
+        }
     }
     logger.bind(tag=TAG).debug("发送MCP工具列表请求")
     await send_mcp_message(conn, payload)
@@ -276,7 +280,11 @@ async def send_mcp_tools_list_continue_request(conn, cursor: str):
         "jsonrpc": "2.0",
         "id": 2,  # mcpToolsListID (same ID for continuation)
         "method": "tools/list",
-        "params": {"cursor": cursor},
+        "params": {
+            "cursor": cursor,
+            "withMRTools": True,      # 请求包含MR-only工具
+            "withUserTools": True     # 请求包含user-only工具
+        },
     }
     logger.bind(tag=TAG).info(f"发送带cursor的MCP工具列表请求: {cursor}")
     await send_mcp_message(conn, payload)
