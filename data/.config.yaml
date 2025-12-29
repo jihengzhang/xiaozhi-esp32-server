@@ -34,7 +34,8 @@ prompt: |
   - 长时间严肃对话
 
 selected_module:
-  LLM: ChatGLMLLM
+  # LLM: ChatGLMLLM
+  LLM: AliCloudLLM
 
 LLM:
   ChatGLMLLM:
@@ -47,3 +48,11 @@ LLM:
     base_url: https://ark.cn-beijing.volces.com/api/v3
     model_name: doubao-1-5-pro-32k-250115
     api_key: 3e682be6-a107-4cdf-9f76-b3b1326308d2
+  AliCloudLLM:
+    # OpenAI-compatible DashScope endpoint (Ali Cloud)
+    type: openai
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    # Set to an activated model, e.g. qwen-plus / qwen-max
+    model_name: qwen3-max
+    # Replace with your DashScope API key
+    api_key: sk-5283830090b0452fa9880fca857ab504
