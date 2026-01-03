@@ -293,3 +293,181 @@ docker compose logs xiaozhi-esp32-server | grep "当前支持的函数列表"
 - [MCP规范 - tools/list](https://modelcontextprotocol.io/specification/2024-11-05)
 - [ESP32 MCP服务器实现](../esp/xiaozhi-esp32_r2/main/mcp_server.cc)
 - [设备端MR工具定义](../esp/xiaozhi-esp32_r2/main/MR_Tool.h)
+
+## 配置切换为外部FunASR Server (2026-01-03)
+
+### 背景
+
+之前的部署使用**本地FunASR模型**（SenseVoiceSmall），这会占用大量服务器资源。通过配置切换到**外部FunASR Server**，可以将ASR处理卸载到独立容器，减轻主服务器的资源压力。
+
+### 问题与解决
+
+#### 问题：Docker权限错误
+
+在停止容器时遇到 AppArmor 阻止的权限错误：
+```
+Error response from daemon: cannot kill container: ... permission denied
+```
+
+**原因：** 系统中同时运行了两个Docker daemon：
+1. Snap版Docker（通过 `/run/snap.docker` 连接）
+2. 常规Docker（通过 `/var/run/docker.sock` 连接）
+
+AppArmor安全策略只允许一个daemon运行。
+
+**解决方案：**
+```bash
+# 方案1：临时修复AppArmor冲突
+sudo snap stop docker
+sudo snap start docker
+
+# 方案2：永久修复（移除Snap Docker）
+sudo snap remove docker
+# 验证只有常规Docker运行
+docker version
+```
+
+### 配置修改步骤
+
+#### Step 1: 更新 `.config.yaml`
+
+修改 `data/.config.yaml`，将ASR模块从本地切换为服务器模式：
+
+```yaml
+selected_module:
+  # 语音识别模块：使用外部 FunASRServer（禁用本地模型）
+  ASR: FunASRServer
+  LLM: AliCloudLLM
+
+ASR:
+  # FunASR (本地模型，已禁用):
+  #   type: fun_local
+  #   model_dir: models/SenseVoiceSmall
+  #   output_dir: tmp/
+  
+  FunASRServer:
+    type: fun_server
+    host: 127.0.0.1
+    port: 10096
+    is_ssl: true
+    api_key: none
+    output_dir: tmp/
+```
+
+**关键变更：**
+- `selected_module.ASR: FunASRServer` - 选择服务器模式
+- 本地 `FunASR` 配置被注释掉
+- FunASRServer 使用内部通信地址 `127.0.0.1:10096`（Docker网络内通信）
+
+#### Step 2: 启动FunASR Server容器（可选，如未运行）
+
+如果FunASR Server不在运行，需要独立启动：
+
+```bash
+# 创建模型目录
+mkdir -p ./funasr-runtime-resources/models
+
+# 启动FunASR容器（使用CPU推理）
+sudo docker run -p 10096:10095 -it --privileged=true \
+  -v $PWD/funasr-runtime-resources/models:/workspace/models \
+  registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.12
+
+# 在容器内执行以下命令
+cd FunASR/runtime
+
+# 启动FunASR服务器（后台运行）
+nohup bash run_server_2pass.sh \
+  --download-model-dir /workspace/models \
+  --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
+  --model-dir damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-onnx \
+  --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx \
+  --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
+  --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
+  --itn-dir thuduj12/fst_itn_zh \
+  --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
+
+# 查看启动日志
+tail -f log.txt
+```
+
+**GPU加速** （可选）：
+如果服务器有GPU，参考 [FunASR官方文档](https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_online_zh.md)。
+
+#### Step 3: 重启xiaozhi-esp32-server容器
+
+```bash
+cd /home/tester/AI_Tools/xiaozhi-esp32-server
+
+# 重启服务
+docker restart xiaozhi-esp32-server
+
+# 查看初始化日志
+sleep 3 && docker logs xiaozhi-esp32-server --tail 30 | grep -E "(ASR|asr|初始化组件)"
+```
+
+**验证成功的日志输出：**
+```
+260103 11:21:43[...][core.utils.modules_initialize]-INFO-ASR模块初始化完成
+260103 11:21:43[...][core.utils.modules_initialize]-INFO-初始化组件: asr成功 FunASRServer
+```
+
+### 架构说明
+
+**本地模式 vs 服务器模式对比：**
+
+| 指标 | 本地 (FunASR) | 服务器 (FunASRServer) |
+|-----|--------------|-------|
+| **资源占用** | 高（加载模型到内存） | 低（仅WebSocket客户端） |
+| **内存需求** | >2GB | <100MB |
+| **启动时间** | ~30-40秒 | ~2秒 |
+| **ASR延迟** | 低（本地处理） | 中（网络往返） |
+| **并发能力** | 单instance | 共享server instance |
+| **适用场景** | 单机/低功耗 | 服务集群/资源受限 |
+
+**通信流程：**
+```
+Device/Client 
+  ↓ (WebSocket: opus audio)
+xiaozhi-esp32-server (fun_server provider)
+  ↓ (WebSocket: PCM data)
+FunASR Server (port 10095)
+  ↓ (Speech recognition)
+Result (JSON with recognized text)
+```
+
+### 配置检验
+
+验证配置是否正确应用：
+
+```bash
+# 查看容器内的配置
+docker exec xiaozhi-esp32-server cat data/.config.yaml | grep -A 5 "selected_module:"
+
+# 应该输出：
+# selected_module:
+#   ASR: FunASRServer
+#   LLM: AliCloudLLM
+```
+
+### 常见问题
+
+**Q: 切换后仍然看到FunASR的日志？**
+A: 这是正常的，旧日志来自容器重启前的状态。重启容器后，最新的日志会显示 `FunASRServer`。
+
+**Q: FunASR Server连接失败怎么办？**
+A: 检查以下几点：
+1. FunASR容器是否运行：`docker ps | grep funasr`
+2. 端口映射是否正确：`docker port <container_name>`
+3. 服务器地址配置：`data/.config.yaml` 中的 host 和 port
+4. SSL证书验证：如果使用自签名证书，确保 `is_ssl: true` 和 `ssl_context` 配置
+
+**Q: 如何切换回本地模式？**
+A: 编辑 `data/.config.yaml`，将 `selected_module.ASR` 改为 `FunASR`，然后重启容器。
+
+### 修改文件清单
+
+| 文件 | 修改内容 | 目的 |
+|------|--------|------|
+| [data/.config.yaml](data/.config.yaml) | `selected_module.ASR: FunASRServer` | 选择服务器模式 |
+| [data/.config.yaml](data/.config.yaml) | 注释本地FunASR配置 | 禁用本地模型加载 |
+| [core/utils/modules_initialize.py](main/xiaozhi-server/core/utils/modules_initialize.py) | 增强ASR初始化日志 | 清晰显示使用的ASR类型 |

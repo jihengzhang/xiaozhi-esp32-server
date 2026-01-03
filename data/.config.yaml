@@ -12,30 +12,58 @@ server:
 # 如需在运行日志中确认，请关注“MCP接入点支持的工具列表”是否包含：mr.start_examination。
 
 prompt: |
-  我叫Jason，男，是一名资深工程师，说话惜字如金，从不多说话。甚至有点冷漠。我熟悉医疗设备，尤其熟悉核磁共振扫描。
-  行梗，但会偷偷研究男友的编程书籍。
+  你是Jason，我是您的核磁扫描助理。你熟悉医疗设备，尤其熟悉核磁共振扫描。
   [核心特征]
-  - 首次唤醒，只回答“你好”，绝不多说一个字
+  - 首次唤醒，回答“你好”
   - 回答简洁，不啰嗦
   - 不主动提问
   - 不谈感情
-  - 讲话严谨，冷淡
-  - 严谨
-  - 精通核磁共振医疗设备
-  - 不需要主动问话，只在被问及时回答
-  - 只回答相关的问题，越简单越好
+  - 讲话严谨，简洁
+  
   [交互指南]
   当用户：
-  - 开始讨论时，从不多说话，简单的说，你好
-  - 讨论感情 → 回答 是吗？然后不再多说
+  - 开始讨论时，不多说话，简单的说，你好
+  - 讨论感情 → 不需要回答
   - 问专业知识 → 简洁回答，提供专业信息 
   绝不：
   - 长篇大论，叽叽歪歪
   - 长时间严肃对话
 
+# 具体处理时选择的模块(The module selected for specific processing)
 selected_module:
-  # LLM: ChatGLMLLM
+  # 语音识别模块：使用外部 FunASRServer（禁用本地模型）
+  ASR: FunASRServer
+  # 大语言模型
   LLM: AliCloudLLM
+  # 视觉语言大模型
+  # VLLM: ChatGLMVLLM
+  # TTS模块
+  # TTS: EdgeTTS
+  # 记忆模块
+  # Memory: nomem
+  # 意图识别模块
+  # Intent: function_call
+
+ASR:
+  # FunASR:
+  #   type: fun_local
+  #   model_dir: models/SenseVoiceSmall
+  #   output_dir: tmp/
+  FunASRServer:
+    # 独立部署FunASR，使用FunASR的API服务，只需要五句话
+    # 第一句：mkdir -p ./funasr-runtime-resources/models
+    # 第二句：sudo docker run -p 10096:10095 -it --privileged=true -v $PWD/funasr-runtime-resources/models:/workspace/models registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.12
+    # 上一句话执行后会进入到容器，继续第三句：cd FunASR/runtime
+    # 不要退出容器，继续在容器中执行第四句：nohup bash run_server_2pass.sh --download-model-dir /workspace/models --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx --model-dir damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-onnx  --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx  --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst --itn-dir thuduj12/fst_itn_zh --hotword /workspace/models/hotwords.txt > log.txt 2>&1 &
+    # 上一句话执行后会进入到容器，继续第五句：tail -f log.txt
+    # 第五句话执行完后，会看到模型下载日志，下载完后就可以连接使用了
+    # 以上是使用CPU推理，如果有GPU，详细参考：https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_online_zh.md
+    type: fun_server
+    host: jihz_FunASR_Server
+    port: 10095
+    is_ssl: false
+    api_key: none
+    output_dir: tmp/
 
 LLM:
   ChatGLMLLM:
@@ -56,3 +84,70 @@ LLM:
     model_name: qwen3-max
     # Replace with your DashScope API key
     api_key: sk-5283830090b0452fa9880fca857ab504
+
+# 使用完声音文件后删除文件(Delete the sound file when you are done using it)
+delete_audio: true
+# 没有语音输入多久后断开连接(秒)，默认2分钟，即120秒
+close_connection_no_voice_time: 20 # 多长时间退出对话模式
+# TTS请求超时时间(秒)
+tts_timeout: 20  #防止长篇大论
+# 开启唤醒词加速
+enable_wakeup_words_response_cache: true
+# 开场是否回复唤醒词
+enable_greeting: true
+# 说完话是否开启提示音
+enable_stop_tts_notify: false
+# 说完话是否开启提示音，音效地址
+# stop_tts_notify_voice: "config/assets/tts_notify.mp3"
+# 是否启用WebSocket心跳保活机制
+enable_websocket_ping: false
+
+
+# TTS音频发送延迟配置
+# tts_audio_send_delay: 控制音频包发送间隔
+#   0: 使用精确时间控制，严格匹配音频帧率（默认，运行时按音频帧率计算）
+#   > 0: 使用固定延迟（毫秒）发送，例如: 60
+tts_audio_send_delay: 0
+
+exit_commands:
+  - "退出"
+  - "关闭"
+  - “ok”
+  - “结束”
+  - "结束对话"        
+  - "再见"
+  - "bye"
+  - "goodbye"
+  - "exit"
+  - "quit"  
+  - "好的"
+
+xiaozhi:
+  type: hello
+  version: 1
+  transport: websocket
+  audio_params:
+    format: opus
+    sample_rate: 16000
+    channels: 1
+    frame_duration: 60
+
+# 模块测试配置
+module_test:
+  test_sentences:
+    - "你好，请介绍一下你自己"
+    - "What's the weather like today?"
+    - "请用100字概括量子计算的基本原理和应用前景"
+
+# 覆盖结束语：退出时仅提示唤醒词
+# 结束语prompt
+end_prompt:
+  enable: true # 是否开启结束语
+  # 结束语
+  prompt: |
+    结束时说：请用hi lily 唤醒我
+
+# 唤醒词，用于识别唤醒词还是讲话内容
+wakeup_words:
+  - "Hi Jason"
+  - "Hi lily"

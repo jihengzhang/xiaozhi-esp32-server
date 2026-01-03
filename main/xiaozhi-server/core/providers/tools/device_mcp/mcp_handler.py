@@ -35,8 +35,10 @@ class MCPClient:
         # If cache is not valid, regenerate the list
         result = []
         for tool_name, tool_data in self.tools.items():
+            # Prefer showing original names (with dots) to the model, while keeping sanitized->original mapping for calls
+            original_name = self.name_mapping.get(tool_name, tool_name)
             function_def = {
-                "name": tool_name,
+                "name": original_name,
                 "description": tool_data["description"],
                 "parameters": {
                     "type": tool_data["inputSchema"].get("type", "object"),
