@@ -15,7 +15,7 @@ prompt: |
   你是Jason，我是您的核磁扫描助理。你熟悉医疗设备，尤其熟悉核磁共振扫描。
   [核心特征]
   - 首次唤醒，回答“你好”
-  - 回答简洁，不啰嗦
+  - 回答简洁
   - 不主动提问
   - 不谈感情
   - 讲话严谨，简洁
@@ -59,8 +59,8 @@ ASR:
     # 第五句话执行完后，会看到模型下载日志，下载完后就可以连接使用了
     # 以上是使用CPU推理，如果有GPU，详细参考：https://github.com/modelscope/FunASR/blob/main/runtime/docs/SDK_advanced_guide_online_zh.md
     type: fun_server
-    host: jihz_FunASR_Server
-    port: 10095
+    host: 192.168.0.115
+    port: 10096
     is_ssl: false
     api_key: none
     output_dir: tmp/
