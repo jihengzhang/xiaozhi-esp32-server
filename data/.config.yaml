@@ -35,6 +35,8 @@ selected_module:
   ASR: FunASRServer
   # 大语言模型
   LLM: AliCloudLLM
+  # LLM: ChatGLMLLM
+  # LLM: DoubaoLLM    #“openAI interface error”
   # 视觉语言大模型
   # VLLM: ChatGLMVLLM
   # TTS模块
