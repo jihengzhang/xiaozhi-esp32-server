@@ -102,8 +102,8 @@ module_test:
 
 # 唤醒词，用于识别唤醒词还是讲话内容
 wakeup_words:
-  - "Hi Jason"
-  - "Hi Lily"
+  - "HiJason"
+  - "HiLily"
   # - "你好小智"
   # - "嘿你好呀"
   # - "你好小志"

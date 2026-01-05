@@ -97,16 +97,23 @@ async def checkWakeupWords(conn, text):
 
     # 获取唤醒词回复配置
     response = wakeup_words_config.get_wakeup_response(voice)
-    if not response or not response.get("file_path"):
-        response = {
-            "voice": "default",
-            "file_path": "config/assets/wakeup_words_short.wav",
-            "time": 0,
-            "text": "我在这里哦！",
-        }
 
-    # 获取音频数据
-    opus_packets = await audio_to_data(response.get("file_path"), use_cache=False)
+    # 如果没有缓存语音，直接 TTS 生成一句“你好”并使用该音色
+    if not response or not response.get("file_path"):
+        text = "你好"
+        tts_result = await asyncio.to_thread(conn.tts.to_tts, text)
+        if not tts_result:
+            return False
+        opus_packets = tts_result
+        response = {
+            "voice": voice,
+            "file_path": None,
+            "time": time.time(),
+            "text": text,
+        }
+    else:
+        # 获取缓存或默认文件的音频数据
+        opus_packets = await audio_to_data(response.get("file_path"), use_cache=False)
     # 播放唤醒词回复
     conn.client_abort = False
 

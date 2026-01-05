@@ -23,10 +23,14 @@ services:
       # 将ESP32工程的main目录挂载到Server容器中，便于联调/共享资源
       - /home/tester/esp/xiaozhi-esp32_r2/main:/opt/xiaozhi-esp32-server/esp32-main
       # 挂载修改后的设备MCP处理器文件，使withMRTools参数生效
-      - ./main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/device_mcp/mcp_handler.py
+      # - ./main/xiaozhi-server/core/providers/tools/device_mcp/mcp_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/device_mcp/mcp_handler.py
       # 挂载修改后的MCP接入点处理器文件
-      - ./main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py
+      # - ./main/xiaozhi-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py:/opt/xiaozhi-esp32-server/core/providers/tools/mcp_endpoint/mcp_endpoint_handler.py
       # 挂载归一化唤醒词匹配逻辑的监听处理器
-      - ./main/xiaozhi-server/core/handle/textHandler/listenMessageHandler.py:/opt/xiaozhi-esp32-server/core/handle/textHandler/listenMessageHandler.py
+      # - ./main/xiaozhi-server/core/handle/textHandler/listenMessageHandler.py:/opt/xiaozhi-esp32-server/core/handle/textHandler/listenMessageHandler.py
       # 挂载缓存型唤醒回复匹配逻辑
-      - ./main/xiaozhi-server/core/handle/helloHandle.py:/opt/xiaozhi-esp32-server/core/handle/helloHandle.py
+      # - ./main/xiaozhi-server/core/handle/helloHandle.py:/opt/xiaozhi-esp32-server/core/handle/helloHandle.py
+      # 挂载预设唤醒问候音频
+      - ./main/xiaozhi-server/config/assets/wakeup_words_short.wav:/opt/xiaozhi-esp32-server/config/assets/wakeup_words_short.wav
+      # load core folder 
+      - ./main/xiaozhi-server/core:/opt/xiaozhi-esp32-server/core
