@@ -53,8 +53,12 @@ class ListenTextMessageHandler(TextMessageHandler):
                     original_text
                 )
 
-                # 识别是否是唤醒词
-                is_wakeup_words = filtered_text in conn.config.get("wakeup_words")
+                # 识别是否是唤醒词（对配置同样去除标点和空格以对齐检测结果）
+                normalized_wakeup_words = [
+                    remove_punctuation_and_length(word)[1]
+                    for word in conn.config.get("wakeup_words", [])
+                ]
+                is_wakeup_words = filtered_text in normalized_wakeup_words
                 # 是否开启唤醒词回复
                 enable_greeting = conn.config.get("enable_greeting", True)
 
@@ -66,8 +70,8 @@ class ListenTextMessageHandler(TextMessageHandler):
                 elif is_wakeup_words:
                     conn.just_woken_up = True
                     # 上报纯文字数据（复用ASR上报功能，但不提供音频数据）
-                    enqueue_asr_report(conn, "嘿，你好呀", [])
-                    await startToChat(conn, "嘿，你好呀")
+                    enqueue_asr_report(conn, "你好", [])
+                    await startToChat(conn, "你好")
                 else:
                     conn.just_woken_up = True
                     # 上报纯文字数据（复用ASR上报功能，但不提供音频数据）

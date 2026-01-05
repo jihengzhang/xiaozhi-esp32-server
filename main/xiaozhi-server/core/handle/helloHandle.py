@@ -78,8 +78,13 @@ async def checkWakeupWords(conn, text):
     if not enable_wakeup_words_response_cache:
         return False
 
+    # 对用户文本和配置的唤醒词都进行一致的去标点/空格处理
     _, filtered_text = remove_punctuation_and_length(text)
-    if filtered_text not in conn.config.get("wakeup_words"):
+    normalized_wakeup_words = [
+        remove_punctuation_and_length(word)[1]
+        for word in conn.config.get("wakeup_words", [])
+    ]
+    if filtered_text not in normalized_wakeup_words:
         return False
 
     conn.just_woken_up = True
