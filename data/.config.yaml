@@ -1,5 +1,6 @@
 server:
-  websocket: ws://172.24.19.102:8000/xiaozhi/v1/
+  # websocket: ws://172.24.19.102:8000/xiaozhi/v1/
+  websocket: ws://Z8G4-M.local:8000/xiaozhi/v1/
   
 # MCP 接入点（用于加载外部/MR 专用工具）。
 # 该地址应指向设备或网关提供的 MCP Endpoint，例如：
@@ -80,7 +81,8 @@ ASR:
     # #   每行一个热词，格式(热词 权重)：阿里巴巴 20（注：热词理论上无限制，但为了兼顾性能和效果，建议热词长度不超过10，个数不超过1k，权重1~100）
     # # SenseVoiceSmall-onnx识别结果中“<|zh|><|NEUTRAL|><|Speech|> ”分别为对应的语种、情感、事件信息
     type: fun_server
-    host: 172.24.19.102
+    # host: 172.24.19.102
+    host: Z8G4-M.local
     port: 10096
     is_ssl: false
     api_key: none
@@ -134,14 +136,13 @@ exit_commands:
   - "退出"
   - "关闭"
   - “ok”
-  - “结束”
   - "结束对话"        
   - "再见"
   - "bye"
   - "goodbye"
   - "exit"
   - "quit"  
-  - "好的"
+  - "完成"
 
 xiaozhi:
   type: hello
