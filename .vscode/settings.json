@@ -1,0 +1,27 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "terminal.integrated.shellArgs.linux": [
+      "-i",
+      "-c",
+      "conda activate audio_env && exec bash"
+    ],
+    "terminal.integrated.profiles.linux": {
+      "bash": {
+        "path": "bash",
+        "args": [
+          "-i",
+          "-c",
+          "conda activate audio_env && exec bash"
+        ]
+      }
+    },
+    "python.defaultInterpreterPath": "/home/tester/miniconda3/envs/audio_env/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true
+  }
+}
