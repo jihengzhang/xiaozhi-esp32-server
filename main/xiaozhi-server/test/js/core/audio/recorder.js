@@ -1,4 +1,4 @@
-// 音频录制模块
+// Audio recording module
 import { log } from '../../utils/logger.js';
 import { initOpusEncoder } from './opus-codec.js';
 import { getAudioPlayer } from './player.js';

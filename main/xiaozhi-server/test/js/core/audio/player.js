@@ -1,4 +1,4 @@
-// 音频播放模块
+// Audio playback module
 import { log } from '../../utils/logger.js';
 import BlockingQueue from '../../utils/blocking-queue.js';
 import { createStreamingContext } from './stream-context.js';
@@ -27,7 +27,7 @@ export class AudioPlayer {
                 sampleRate: this.SAMPLE_RATE,
                 latencyHint: 'interactive'
             });
-            log('创建音频上下文，采样率: ' + this.SAMPLE_RATE + 'Hz', 'debug');
+            log('Created audio context, sample rate: ' + this.SAMPLE_RATE + 'Hz', 'debug');
         }
         return this.audioContext;
     }
@@ -40,7 +40,7 @@ export class AudioPlayer {
             if (typeof window.ModuleInstance === 'undefined') {
                 if (typeof Module !== 'undefined') {
                     window.ModuleInstance = Module;
-                    log('使用全局Module作为ModuleInstance', 'info');
+                    log('Using global Module as ModuleInstance', 'info');
                 } else {
                     throw new Error('Opus库未加载，ModuleInstance和Module对象都不存在');
                 }
@@ -59,7 +59,7 @@ export class AudioPlayer {
                     if (this.decoderPtr) return true;
 
                     const decoderSize = mod._opus_decoder_get_size(this.channels);
-                    log(`Opus解码器大小: ${decoderSize}字节`, 'debug');
+                    log(`Opus decoder size: ${decoderSize} bytes`, 'debug');
 
                     this.decoderPtr = mod._malloc(decoderSize);
                     if (!this.decoderPtr) {
@@ -77,7 +77,7 @@ export class AudioPlayer {
                         throw new Error(`Opus解码器初始化失败: ${err}`);
                     }
 
-                    log("Opus解码器初始化成功", 'success');
+                    log("Opus decoder initialized successfully", 'success');
                     return true;
                 },
 
@@ -121,7 +121,7 @@ export class AudioPlayer {
 
                         return decodedData;
                     } catch (error) {
-                        log(`Opus解码错误: ${error.message}`, 'error');
+                        log(`Opus decoding error: ${error.message}`, 'error');
                         return new Int16Array(0);
                     }
                 },
@@ -141,7 +141,7 @@ export class AudioPlayer {
             return this.opusDecoder;
 
         } catch (error) {
-            log(`Opus解码器初始化失败: ${error.message}`, 'error');
+            log(`Opus decoder initialization failed: ${error.message}`, 'error');
             this.opusDecoder = null;
             throw error;
         }
@@ -149,10 +149,10 @@ export class AudioPlayer {
 
     // 启动音频缓冲
     async startAudioBuffering() {
-        log("开始音频缓冲...", 'info');
+        log("Starting audio buffering...", 'info');
 
         this.initOpusDecoder().catch(error => {
-            log(`预初始化Opus解码器失败: ${error.message}`, 'warning');
+            log(`Pre-initialization of Opus decoder failed: ${error.message}`, 'warning');
         });
 
         const timeout = 400;
@@ -161,11 +161,11 @@ export class AudioPlayer {
                 6,
                 timeout,
                 (count) => {
-                    log(`缓冲超时，当前缓冲包数: ${count}，开始播放`, 'info');
+                    log(`Buffer timeout. Current buffered packets: ${count}, starting playback`, 'info');
                 }
             );
             if (packets.length) {
-                log(`已缓冲 ${packets.length} 个音频包，开始播放`, 'info');
+                log(`Buffered ${packets.length} audio packets, starting playback`, 'info');
                 this.streamingContext.pushAudioBuffer(packets);
             }
 
@@ -186,13 +186,13 @@ export class AudioPlayer {
             this.audioContext = this.getAudioContext();
 
             if (!this.opusDecoder) {
-                log('初始化Opus解码器...', 'info');
+                log('Initializing Opus decoder...', 'info');
                 try {
                     this.opusDecoder = await this.initOpusDecoder();
                     if (!this.opusDecoder) {
                         throw new Error('解码器初始化失败');
                     }
-                    log('Opus解码器初始化成功', 'success');
+                    log('Opus decoder initialized successfully', 'success');
                 } catch (error) {
                     log('Opus解码器初始化失败: ' + error.message, 'error');
                     this.isPlaying = false;
