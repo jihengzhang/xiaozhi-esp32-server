@@ -24,6 +24,12 @@ export async function webSocketConnect(otaUrl, config) {
 
     // Use websocket URL returned by OTA
     let connUrl = new URL(websocket.url);
+    
+    // Auto-upgrade to WSS if page is loaded over HTTPS
+    if (window.location.protocol === 'https:' && connUrl.protocol === 'ws:') {
+        log('Page loaded via HTTPS, upgrading WebSocket to WSS', 'info');
+        connUrl.protocol = 'wss:';
+    }
 
     // Add token parameter (from OTA response)
     if (websocket.token) {

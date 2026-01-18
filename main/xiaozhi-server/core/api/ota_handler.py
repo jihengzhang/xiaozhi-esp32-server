@@ -138,7 +138,11 @@ class OTAHandler(BaseHandler):
         if "你的" not in websocket_config:
             return websocket_config
         else:
-            return f"ws://{local_ip}:{port}/xiaozhi/v1/"
+            # 检查是否启用SSL，决定使用 ws:// 还是 wss://
+            ssl_config = server_config.get("ssl", {})
+            ssl_enabled = ssl_config.get("enabled", False)
+            protocol = "wss" if ssl_enabled else "ws"
+            return f"{protocol}://{local_ip}:{port}/xiaozhi/v1/"
 
     async def handle_post(self, request):
         """处理 OTA POST 请求

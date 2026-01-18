@@ -44,7 +44,7 @@
         "mockResponse": {
             "success": true,
             "volume": "${volume}",
-            "message": "音量已设置为 ${volume}"
+            "message": "Volume has been set to ${volume}"
         }
     },
     {
@@ -66,7 +66,7 @@
         "mockResponse": {
             "success": true,
             "brightness": "${brightness}",
-            "message": "亮度已设置为 ${brightness}"
+            "message": "Brightness has been set to ${brightness}"
         }
     }
 ]

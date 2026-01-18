@@ -1,0 +1,33 @@
+# SSL Configuration for xiaozhi-server
+# Add this section to your config.yaml file
+
+server:
+  ip: 0.0.0.0
+  port: 8000              # WebSocket port
+  http_port: 8002         # HTTP port
+  
+  # SSL/TLS Configuration
+  ssl:
+    enabled: true         # Set to true to enable HTTPS/WSS
+    cert_file: /home/tester/AI_Tool/xiaozhi-esp32-server_sdk/main/xiaozhi-server/ssl/server.crt
+    key_file: /home/tester/AI_Tool/xiaozhi-esp32-server_sdk/main/xiaozhi-server/ssl/server.key
+  
+  # Other existing config...
+  auth_key: your-secret-key
+  # ...
+
+# After adding this configuration:
+# 1. Restart xiaozhi-server
+# 2. Access URLs will be:
+#    - HTTPS: https://192.168.0.114:8002/xiaozhi/ota/
+#    - WSS:   wss://192.168.0.114:8000/xiaozhi/v1/
+# 
+# 3. Update test_page.html to use HTTPS URL in OTA field:
+#    https://192.168.0.114:8002/xiaozhi/ota/
+#
+# 4. Browser will automatically use WSS when page is loaded via HTTPS
+
+# To disable SSL (use HTTP/WS):
+# server:
+#   ssl:
+#     enabled: false

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Audio Recording Environment Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-result { 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+            border-left: 5px solid #ccc;
+        }
+        .pass { 
+            background: #d4edda; 
+            border-color: #28a745;
+            color: #155724;
+        }
+        .fail { 
+            background: #f8d7da; 
+            border-color: #dc3545;
+            color: #721c24;
+        }
+        .info { 
+            background: #d1ecf1; 
+            border-color: #17a2b8;
+            color: #0c5460;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎤 Audio Recording Environment Diagnostics</h1>
+    <div id="results"></div>
+    <button onclick="testMicrophone()">Test Microphone Access</button>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, type) {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+        
+        // Run diagnostics on page load
+        window.onload = function() {
+            results.innerHTML = '';
+            
+            // Test 1: Check current page protocol
+            const protocol = window.location.protocol;
+            const hostname = window.location.hostname;
+            const isSecure = protocol === 'https:' || hostname === 'localhost' || hostname === '127.0.0.1';
+            
+            addResult(
+                `<strong>Test 1: Page Protocol</strong><br>` +
+                `Protocol: <code>${protocol}</code><br>` +
+                `Hostname: <code>${hostname}</code><br>` +
+                `Result: ${isSecure ? '✅ SECURE' : '❌ INSECURE - getUserMedia requires HTTPS or localhost'}`,
+                isSecure ? 'pass' : 'fail'
+            );
+            
+            // Test 2: Check navigator object
+            const hasNavigator = typeof navigator !== 'undefined';
+            addResult(
+                `<strong>Test 2: Navigator Object</strong><br>` +
+                `Type: <code>${typeof navigator}</code><br>` +
+                `Result: ${hasNavigator ? '✅ AVAILABLE' : '❌ NOT AVAILABLE'}`,
+                hasNavigator ? 'pass' : 'fail'
+            );
+            
+            // Test 3: Check mediaDevices API
+            const hasMediaDevices = hasNavigator && typeof navigator.mediaDevices !== 'undefined';
+            addResult(
+                `<strong>Test 3: MediaDevices API</strong><br>` +
+                `Type: <code>${hasNavigator ? typeof navigator.mediaDevices : 'N/A'}</code><br>` +
+                `Result: ${hasMediaDevices ? '✅ AVAILABLE' : '❌ NOT AVAILABLE'}`,
+                hasMediaDevices ? 'pass' : 'fail'
+            );
+            
+            // Test 4: Check getUserMedia function
+            const hasGetUserMedia = hasMediaDevices && typeof navigator.mediaDevices.getUserMedia !== 'undefined';
+            addResult(
+                `<strong>Test 4: getUserMedia Function</strong><br>` +
+                `Type: <code>${hasMediaDevices ? typeof navigator.mediaDevices.getUserMedia : 'N/A'}</code><br>` +
+                `Result: ${hasGetUserMedia ? '✅ AVAILABLE' : '❌ NOT AVAILABLE'}`,
+                hasGetUserMedia ? 'pass' : 'fail'
+            );
+            
+            // Test 5: Browser detection
+            const userAgent = navigator.userAgent;
+            let browserInfo = 'Unknown Browser';
+            if (userAgent.indexOf('Chrome') > -1) browserInfo = 'Chrome';
+            else if (userAgent.indexOf('Firefox') > -1) browserInfo = 'Firefox';
+            else if (userAgent.indexOf('Safari') > -1) browserInfo = 'Safari';
+            else if (userAgent.indexOf('Edge') > -1) browserInfo = 'Edge';
+            
+            addResult(
+                `<strong>Test 5: Browser Information</strong><br>` +
+                `Browser: <code>${browserInfo}</code><br>` +
+                `User Agent: <code style="font-size: 12px;">${userAgent}</code>`,
+                'info'
+            );
+            
+            // Summary
+            const allPassed = isSecure && hasNavigator && hasMediaDevices && hasGetUserMedia;
+            if (allPassed) {
+                addResult(
+                    `<strong>✅ Environment is ready for audio recording!</strong><br>` +
+                    `Click the "Test Microphone Access" button below to verify microphone permissions.`,
+                    'pass'
+                );
+            } else {
+                addResult(
+                    `<strong>❌ Environment is NOT ready</strong><br>` +
+                    `<strong>Solution:</strong><br>` +
+                    `1. Access this page using: <code>http://localhost:8006/test_env.html</code><br>` +
+                    `2. Make sure the test server is running: <code>python -m http.server 8006</code><br>` +
+                    `3. Use a modern browser (Chrome, Firefox, Edge, Safari)<br>` +
+                    `4. If using a remote server, access via HTTPS`,
+                    'fail'
+                );
+            }
+        };
+        
+        async function testMicrophone() {
+            try {
+                addResult(
+                    `<strong>Microphone Access Test</strong><br>` +
+                    `Requesting microphone permission...`,
+                    'info'
+                );
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000,
+                        channelCount: 1
+                    }
+                });
+                
+                // Get audio track info
+                const audioTrack = stream.getAudioTracks()[0];
+                const settings = audioTrack.getSettings();
+                
+                addResult(
+                    `<strong>✅ Microphone Access Granted!</strong><br>` +
+                    `Device: <code>${audioTrack.label}</code><br>` +
+                    `Sample Rate: <code>${settings.sampleRate} Hz</code><br>` +
+                    `Channels: <code>${settings.channelCount}</code><br>` +
+                    `<em>Your recording should work now!</em>`,
+                    'pass'
+                );
+                
+                // Clean up
+                stream.getTracks().forEach(track => track.stop());
+                
+            } catch (error) {
+                addResult(
+                    `<strong>❌ Microphone Access Failed</strong><br>` +
+                    `Error: <code>${error.name}</code><br>` +
+                    `Message: <code>${error.message}</code><br><br>` +
+                    `<strong>Common Solutions:</strong><br>` +
+                    `• If "NotAllowedError": Grant microphone permission in browser settings<br>` +
+                    `• If "NotFoundError": Check if a microphone is connected<br>` +
+                    `• If "NotSupportedError": Use HTTPS or localhost<br>` +
+                    `• Clear browser cache and reload the page`,
+                    'fail'
+                );
+            }
+        }
+    </script>
+</body>
+</html>

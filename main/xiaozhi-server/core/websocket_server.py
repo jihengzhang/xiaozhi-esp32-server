@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import ssl
 
 import websockets
 from config.logger import setup_logging
@@ -72,9 +73,32 @@ class WebSocketServer:
         server_config = self.config["server"]
         host = server_config.get("ip", "0.0.0.0")
         port = int(server_config.get("port", 8000))
+        
+        # 检查是否启用SSL
+        ssl_config = server_config.get("ssl", {})
+        ssl_enabled = ssl_config.get("enabled", False)
+        ssl_context = None
+        
+        if ssl_enabled:
+            cert_file = ssl_config.get("cert_file")
+            key_file = ssl_config.get("key_file")
+            
+            if cert_file and key_file:
+                try:
+                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                    ssl_context.load_cert_chain(cert_file, key_file)
+                    self.logger.bind(tag=TAG).info(f"SSL enabled for WebSocket server (WSS)")
+                    self.logger.bind(tag=TAG).info(f"Certificate: {cert_file}")
+                except Exception as e:
+                    self.logger.bind(tag=TAG).warning(f"Failed to load SSL certificates: {e}")
+                    self.logger.bind(tag=TAG).warning("Falling back to WS (non-secure)")
+                    ssl_enabled = False
+            else:
+                self.logger.bind(tag=TAG).warning("SSL enabled but cert/key files not specified")
+                ssl_enabled = False
 
         async with websockets.serve(
-            self._handle_connection, host, port, process_request=self._http_response
+            self._handle_connection, host, port, process_request=self._http_response, ssl=ssl_context
         ):
             await asyncio.Future()
 

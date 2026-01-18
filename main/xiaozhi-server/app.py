@@ -77,14 +77,23 @@ async def main():
 
     read_config_from_api = config.get("read_config_from_api", False)
     port = int(config["server"].get("http_port", 8003))
+    
+    # 检查SSL配置
+    ssl_config = config["server"].get("ssl", {})
+    ssl_enabled = ssl_config.get("enabled", False)
+    http_protocol = "https" if ssl_enabled else "http"
+    ws_protocol = "wss" if ssl_enabled else "ws"
+    
     if not read_config_from_api:
         logger.bind(tag=TAG).info(
-            "OTA接口是\t\thttp://{}:{}/xiaozhi/ota/",
+            "OTA接口是\t\t{}://{}:{}/xiaozhi/ota/",
+            http_protocol,
             get_local_ip(),
             port,
         )
     logger.bind(tag=TAG).info(
-        "视觉分析接口是\thttp://{}:{}/mcp/vision/explain",
+        "视觉分析接口是\t{}://{}:{}/mcp/vision/explain",
+        http_protocol,
         get_local_ip(),
         port,
     )
@@ -107,7 +116,8 @@ async def main():
         websocket_port = int(server_config.get("port", 8000))
 
     logger.bind(tag=TAG).info(
-        "Websocket地址是\tws://{}:{}/xiaozhi/v1/",
+        "Websocket地址是\t{}://{}:{}/xiaozhi/v1/",
+        ws_protocol,
         get_local_ip(),
         websocket_port,
     )

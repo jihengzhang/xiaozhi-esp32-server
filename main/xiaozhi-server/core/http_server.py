@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 from aiohttp import web
 from config.logger import setup_logging
 from core.api.ota_handler import OTAHandler
@@ -14,12 +15,13 @@ class SimpleHttpServer:
         self.ota_handler = OTAHandler(config)
         self.vision_handler = VisionHandler(config)
 
-    def _get_websocket_url(self, local_ip: str, port: int) -> str:
+    def _get_websocket_url(self, local_ip: str, port: int, use_ssl: bool = False) -> str:
         """获取websocket地址
 
         Args:
             local_ip: 本地IP地址
             port: 端口号
+            use_ssl: 是否使用SSL
 
         Returns:
             str: websocket地址
@@ -30,7 +32,8 @@ class SimpleHttpServer:
         if websocket_config and "你" not in websocket_config:
             return websocket_config
         else:
-            return f"ws://{local_ip}:{port}/xiaozhi/v1/"
+            protocol = "wss" if use_ssl else "ws"
+            return f"{protocol}://{local_ip}:{port}/xiaozhi/v1/"
 
     async def start(self):
         try:
@@ -78,7 +81,31 @@ class SimpleHttpServer:
                 # 运行服务
                 runner = web.AppRunner(app)
                 await runner.setup()
-                site = web.TCPSite(runner, host, port)
+                
+                # 检查是否启用SSL
+                ssl_config = server_config.get("ssl", {})
+                ssl_enabled = ssl_config.get("enabled", False)
+                ssl_context = None
+                
+                if ssl_enabled:
+                    cert_file = ssl_config.get("cert_file")
+                    key_file = ssl_config.get("key_file")
+                    
+                    if cert_file and key_file:
+                        try:
+                            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                            ssl_context.load_cert_chain(cert_file, key_file)
+                            self.logger.bind(tag=TAG).info(f"SSL enabled for HTTP server")
+                            self.logger.bind(tag=TAG).info(f"Certificate: {cert_file}")
+                        except Exception as e:
+                            self.logger.bind(tag=TAG).warning(f"Failed to load SSL certificates: {e}")
+                            self.logger.bind(tag=TAG).warning("Falling back to HTTP")
+                            ssl_enabled = False
+                    else:
+                        self.logger.bind(tag=TAG).warning("SSL enabled but cert/key files not specified")
+                        ssl_enabled = False
+                
+                site = web.TCPSite(runner, host, port, ssl_context=ssl_context)
                 await site.start()
 
                 # 保持服务运行

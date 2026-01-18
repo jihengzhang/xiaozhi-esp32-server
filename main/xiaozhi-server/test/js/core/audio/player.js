@@ -3,16 +3,16 @@ import { log } from '../../utils/logger.js';
 import BlockingQueue from '../../utils/blocking-queue.js';
 import { createStreamingContext } from './stream-context.js';
 
-// 音频播放器类
+// Audio player class
 export class AudioPlayer {
     constructor() {
-        // 音频参数
+        // Audio parameters
         this.SAMPLE_RATE = 16000;
         this.CHANNELS = 1;
         this.FRAME_SIZE = 960;
         this.MIN_AUDIO_DURATION = 0.12;
 
-        // 状态
+        // State
         this.audioContext = null;
         this.opusDecoder = null;
         this.streamingContext = null;
@@ -20,7 +20,7 @@ export class AudioPlayer {
         this.isPlaying = false;
     }
 
-    // 获取或创建AudioContext
+    // Get or create AudioContext
     getAudioContext() {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
@@ -32,7 +32,7 @@ export class AudioPlayer {
         return this.audioContext;
     }
 
-    // 初始化Opus解码器
+    // Initialize Opus decoder
     async initOpusDecoder() {
         if (this.opusDecoder) return this.opusDecoder;
 
@@ -42,7 +42,7 @@ export class AudioPlayer {
                     window.ModuleInstance = Module;
                     log('Using global Module as ModuleInstance', 'info');
                 } else {
-                    throw new Error('Opus库未加载，ModuleInstance和Module对象都不存在');
+                    throw new Error('Opus library not loaded, ModuleInstance and Module objects do not exist');
                 }
             }
 
@@ -63,7 +63,7 @@ export class AudioPlayer {
 
                     this.decoderPtr = mod._malloc(decoderSize);
                     if (!this.decoderPtr) {
-                        throw new Error("无法分配解码器内存");
+                        throw new Error("Failed to allocate decoder memory");
                     }
 
                     const err = mod._opus_decoder_init(
@@ -74,7 +74,7 @@ export class AudioPlayer {
 
                     if (err < 0) {
                         this.destroy();
-                        throw new Error(`Opus解码器初始化失败: ${err}`);
+                        throw new Error(`Opus decoder initialization failed: ${err}`);
                     }
 
                     log("Opus decoder initialized successfully", 'success');
@@ -84,7 +84,7 @@ export class AudioPlayer {
                 decode: function (opusData) {
                     if (!this.decoderPtr) {
                         if (!this.init()) {
-                            throw new Error("解码器未初始化且无法初始化");
+                            throw new Error("Decoder not initialized and cannot be initialized");
                         }
                     }
 
@@ -108,7 +108,7 @@ export class AudioPlayer {
                         if (decodedSamples < 0) {
                             mod._free(opusPtr);
                             mod._free(pcmPtr);
-                            throw new Error(`Opus解码失败: ${decodedSamples}`);
+                            throw new Error(`Opus decoding failed: ${decodedSamples}`);
                         }
 
                         const decodedData = new Int16Array(decodedSamples);
@@ -135,7 +135,7 @@ export class AudioPlayer {
             };
 
             if (!this.opusDecoder.init()) {
-                throw new Error("Opus解码器初始化失败");
+                throw new Error("Opus decoder initialization failed");
             }
 
             return this.opusDecoder;
@@ -147,7 +147,7 @@ export class AudioPlayer {
         }
     }
 
-    // 启动音频缓冲
+    // Start audio buffering
     async startAudioBuffering() {
         log("Starting audio buffering...", 'info');
 
@@ -180,7 +180,7 @@ export class AudioPlayer {
         }
     }
 
-    // 播放已缓冲的音频
+    // Play buffered audio
     async playBufferedAudio() {
         try {
             this.audioContext = this.getAudioContext();
@@ -190,11 +190,11 @@ export class AudioPlayer {
                 try {
                     this.opusDecoder = await this.initOpusDecoder();
                     if (!this.opusDecoder) {
-                        throw new Error('解码器初始化失败');
+                        throw new Error('Decoder initialization failed');
                     }
                     log('Opus decoder initialized successfully', 'success');
                 } catch (error) {
-                    log('Opus解码器初始化失败: ' + error.message, 'error');
+                    log('Opus decoder initialization failed: ' + error.message, 'error');
                     this.isPlaying = false;
                     return;
                 }
@@ -214,43 +214,43 @@ export class AudioPlayer {
             this.streamingContext.startPlaying();
 
         } catch (error) {
-            log(`播放已缓冲的音频出错: ${error.message}`, 'error');
+            log(`Error playing buffered audio: ${error.message}`, 'error');
             this.isPlaying = false;
             this.streamingContext = null;
         }
     }
 
-    // 添加音频数据到队列
+    // Add audio data to queue
     enqueueAudioData(opusData) {
         if (opusData.length > 0) {
             this.queue.enqueue(opusData);
         } else {
-            log('收到空音频数据帧，可能是结束标志', 'warning');
+            log('Received empty audio frame, may be end flag', 'warning');
             if (this.isPlaying && this.streamingContext) {
                 this.streamingContext.endOfStream = true;
             }
         }
     }
 
-    // 预加载解码器
+    // Preload decoder
     async preload() {
-        log('预加载Opus解码器...', 'info');
+        log('Preloading Opus decoder...', 'info');
         try {
             await this.initOpusDecoder();
-            log('Opus解码器预加载成功', 'success');
+            log('Opus decoder preload successful', 'success');
         } catch (error) {
-            log(`Opus解码器预加载失败: ${error.message}，将在需要时重试`, 'warning');
+            log(`Opus decoder preload failed: ${error.message}, will retry when needed`, 'warning');
         }
     }
 
-    // 启动播放系统
+    // Start playback system
     async start() {
         await this.preload();
         this.playBufferedAudio();
         this.startAudioBuffering();
     }
 
-    // 获取音频包统计信息
+    // Get audio packet statistics
     getAudioStats() {
         if (!this.streamingContext) {
             return {
@@ -264,29 +264,29 @@ export class AudioPlayer {
         const pendingPlay = this.streamingContext.getPendingPlayCount();
 
         return {
-            pendingDecode,  // 待解码包数
-            pendingPlay,    // 待播放包数
-            totalPending: pendingDecode + pendingPlay  // 总待处理包数
+            pendingDecode,  // Pending decode packets
+            pendingPlay,    // Pending play packets
+            totalPending: pendingDecode + pendingPlay  // Total pending packets
         };
     }
 
-    // 清空所有音频缓冲并停止播放
+    // Clear all audio buffers and stop playback
     clearAllAudio() {
-        log('AudioPlayer: 清空所有音频', 'info');
+        log('AudioPlayer: Clearing all audio', 'info');
 
-        // 清空接收队列（使用clear方法保持对象引用）
+        // Clear receive queue (using clear method to maintain object reference)
         this.queue.clear();
 
-        // 清空流上下文的所有缓冲
+        // Clear all buffers in streaming context
         if (this.streamingContext) {
             this.streamingContext.clearAllBuffers();
         }
 
-        log('AudioPlayer: 音频已清空', 'success');
+        log('AudioPlayer: Audio cleared', 'success');
     }
 }
 
-// 创建单例
+// Create singleton
 let audioPlayerInstance = null;
 
 export function getAudioPlayer() {
