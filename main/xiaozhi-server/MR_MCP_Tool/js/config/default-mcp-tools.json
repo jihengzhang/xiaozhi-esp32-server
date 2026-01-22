@@ -1,0 +1,312 @@
+[
+    {
+        "name": "hello_world",
+        "description": "在设备端打印 Hello World 消息，用于测试 MCP 工具调用流程",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "要问候的名字（可选，默认为 World）"
+                }
+            }
+        }
+    },
+    {
+        "name": "self.get_device_status",
+        "description": "Provides the real-time information of the device, including the current status of the audio speaker, screen, battery, network, etc.\nUse this tool for: \n1. Answering questions about current condition (e.g. what is the current volume of the audio speaker?)\n2. As the first step to control the device (e.g. turn up / down the volume of the audio speaker, etc.)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "audio_speaker": {
+                "volume": 50,
+                "muted": false
+            },
+            "screen": {
+                "brightness": 80,
+                "theme": "light"
+            },
+            "battery": {
+                "level": 85,
+                "charging": false
+            },
+            "network": {
+                "connected": true,
+                "type": "wifi"
+            }
+        }
+    },
+    {
+        "name": "self.audio_speaker.set_volume",
+        "description": "Set the volume of the audio speaker. If the current volume is unknown, you must call `self.get_device_status` tool first and then call this tool.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "volume": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                }
+            },
+            "required": [
+                "volume"
+            ]
+        },
+        "mockResponse": {
+            "success": true,
+            "volume": "${volume}",
+            "message": "Volume has been set to ${volume}"
+        }
+    },
+    {
+        "name": "self.screen.set_brightness",
+        "description": "Set the brightness of the screen.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "brightness": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                }
+            },
+            "required": [
+                "brightness"
+            ]
+        },
+        "mockResponse": {
+            "success": true,
+            "brightness": "${brightness}",
+            "message": "Brightness has been set to ${brightness}"
+        }
+    },
+    {
+        "name": "get_pulse_sequences",
+        "category": "scan_control",
+        "description": "获取设备支持的所有脉冲序列列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "sequences": ["T1", "T2", "FLAIR", "GRE", "SPGR", "DWI", "DTI"]
+        }
+    },
+    {
+        "name": "set_scan_parameters",
+        "category": "scan_control",
+        "description": "设置扫描参数 (TR, TE, Flip Angle)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sequence": {
+                    "type": "string",
+                    "description": "脉冲序列名称",
+                    "enum": ["T1", "T2", "FLAIR", "GRE", "SPGR", "DWI", "DTI"]
+                },
+                "tr": {
+                    "type": "number",
+                    "description": "重复时间 (ms)",
+                    "minimum": 100,
+                    "maximum": 10000,
+                    "default": 1000
+                },
+                "te": {
+                    "type": "number",
+                    "description": "回波时间 (ms)",
+                    "minimum": 10,
+                    "maximum": 500,
+                    "default": 30
+                },
+                "flip_angle": {
+                    "type": "number",
+                    "description": "翻转角度 (度)",
+                    "minimum": 0,
+                    "maximum": 180,
+                    "default": 90
+                }
+            },
+            "required": ["sequence"]
+        },
+        "mockResponse": {
+            "status": "success",
+            "message": "Parameters set successfully"
+        }
+    },
+    {
+        "name": "get_cable_position",
+        "category": "patient_cable",
+        "description": "获取患者线缆当前位置",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "position": 50,
+            "unit": "%"
+        }
+    },
+    {
+        "name": "move_cable",
+        "category": "patient_cable",
+        "description": "移动患者线缆到指定位置",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "position": {
+                    "type": "number",
+                    "description": "目标位置百分比 (0-100)",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 50
+                },
+                "speed": {
+                    "type": "string",
+                    "description": "移动速度",
+                    "enum": ["slow", "normal", "fast"],
+                    "default": "normal"
+                }
+            },
+            "required": ["position"]
+        },
+        "mockResponse": {
+            "status": "moving",
+            "target_position": "${position}%",
+            "speed": "${speed}"
+        }
+    },
+    {
+        "name": "check_cable_limits",
+        "category": "patient_cable",
+        "description": "检查患者线缆安全限制",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "status": "safe",
+            "message": "Cable within safe limits"
+        }
+    },
+    {
+        "name": "get_device_info",
+        "category": "device_info",
+        "description": "获取设备基本信息",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "enum": ["serial", "firmware", "model", "all"],
+                    "description": "查询字段",
+                    "default": "all"
+                }
+            }
+        },
+        "mockResponse": {
+            "serial": "MR-2024-001",
+            "firmware": "v5.2.1",
+            "model": "3T MRI",
+            "hw_config": "GE Discovery"
+        }
+    },
+    {
+        "name": "get_calibration_status",
+        "category": "device_info",
+        "description": "获取设备校准状态",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "status": "OK",
+            "last_calibrated": "2024-01-21",
+            "next_calibration": "2024-02-21"
+        }
+    },
+    {
+        "name": "get_system_health",
+        "category": "device_info",
+        "description": "获取系统健康状态 (CPU, 内存, 温度)",
+        "inputSchema": {
+            "type": "object",
+            "properties": {}
+        },
+        "mockResponse": {
+            "cpu": 45,
+            "memory": 72,
+            "temperature": 35,
+            "unit": "%/°C"
+        }
+    },
+    {
+        "name": "get_error_log",
+        "category": "device_info",
+        "description": "获取系统错误日志",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "返回的日志条数",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 10
+                }
+            }
+        },
+        "mockResponse": {
+            "errors": [],
+            "count": 0,
+            "message": "No errors detected"
+        }
+    },
+    {
+        "name": "load_protocol_from_library_enhanced",
+        "category": "protocol_management",
+        "description": "从协议库加载 MRI 扫描协议",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "library_name": {
+                    "type": "string",
+                    "enum": ["ge", "site", "service"],
+                    "description": "协议库来源",
+                    "default": "site"
+                },
+                "protocol_name": {
+                    "type": "string",
+                    "description": "协议名称"
+                }
+            },
+            "required": ["protocol_name"]
+        },
+        "mockResponse": {
+            "status": "loaded",
+            "protocol": "${protocol_name}",
+            "library": "${library_name}"
+        }
+    },
+    {
+        "name": "get_protocol_list",
+        "category": "protocol_management",
+        "description": "获取可用协议列表",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "library": {
+                    "type": "string",
+                    "enum": ["ge", "site", "service"],
+                    "description": "协议库",
+                    "default": "site"
+                }
+            }
+        },
+        "mockResponse": {
+            "library": "${library}",
+            "protocols": ["T1_BRAIN", "T2_BRAIN", "FLAIR_BRAIN", "T1_SPINE", "T2_SPINE", "DWI_BRAIN"]
+        }
+    }
+]
