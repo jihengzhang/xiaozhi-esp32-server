@@ -28,6 +28,31 @@
                 document.body.appendChild(warningDiv);
             });
         }
+
+        // 从API加载配置
+        async function loadConfigFromServer() {
+            try {
+                const response = await fetch('/api/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    if (config.ota_url) {
+                        // 页面加载完成后更新OTA地址
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const otaUrlInput = document.getElementById('otaUrl');
+                            if (otaUrlInput) {
+                                otaUrlInput.value = config.ota_url;
+                            }
+                        });
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not load config from server:', error);
+                // 使用默认值，不影响页面加载
+            }
+        }
+        
+        // 页面加载时尝试获取配置
+        loadConfigFromServer();
     </script>
 </head>
 

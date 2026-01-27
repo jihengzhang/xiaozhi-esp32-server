@@ -1,0 +1,85 @@
+ASR:
+  FunASRServer:
+    api_key: none
+    host: Z8G4-M.local
+    is_ssl: false
+    output_dir: tmp/
+    port: 10096
+    type: fun_server
+LLM:
+  AliCloudLLM:
+    api_key: sk-5283830090b0452fa9880fca857ab504
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model_name: qwen3-max
+    type: openai
+  ChatGLMLLM:
+    api_key: eb51f11fecc44b3a9b39c654ed427725.TUL10k87nno3Hi4b
+    model_name: glm-4-flash
+    type: openai
+    url: https://open.bigmodel.cn/api/paas/v4/
+  DoubaoLLM:
+    api_key: 3e682be6-a107-4cdf-9f76-b3b1326308d2
+    base_url: https://ark.cn-beijing.volces.com/api/v3
+    model_name: doubao-1-5-pro-32k-250115
+    type: openai
+close_connection_no_voice_time: 20
+delete_audio: true
+enable_greeting: true
+enable_stop_tts_notify: false
+enable_wakeup_words_response_cache: true
+enable_websocket_ping: false
+end_prompt:
+  enable: true
+  prompt: '结束时说：请用hi lily 唤醒我
+
+    '
+exit_commands:
+- 退出
+- 关闭
+- “ok”
+- 结束对话
+- 再见
+- bye
+- goodbye
+- exit
+- quit
+- 完成
+module_test:
+  test_sentences:
+  - 你好，请介绍一下你自己
+  - What's the weather like today?
+  - 请用100字概括量子计算的基本原理和应用前景
+prompt: 'You are Jason from US, an MRI scanning assistant. You are familiar with medical
+  equipment, especially MRI scanning.
+
+  You should ALWAYS answer in English, regardless of the language the user speaks.
+
+  Keep your answers concise and professional.
+
+  Do not ask questions proactively.
+
+  Do not discuss emotions.
+
+  Speak precisely and concisely.
+
+  Remember: ALWAYS respond in English only.'
+selected_module:
+  ASR: FunASRServer
+  LLM: AliCloudLLM
+server:
+  ota_url: https://192.168.1.100:8003/xiaozhi/ota/
+  vision_explain: https://192.168.1.100:8003/mcp/vision/explain
+  websocket: wss://192.168.1.100:8003/xiaozhi/v1/
+tts_audio_send_delay: 0
+tts_timeout: 20
+wakeup_words:
+- HiJason
+- Hilily
+xiaozhi:
+  audio_params:
+    channels: 1
+    format: opus
+    frame_duration: 60
+    sample_rate: 16000
+  transport: websocket
+  type: hello

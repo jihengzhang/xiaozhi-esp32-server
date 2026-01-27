@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 from collections.abc import Mapping
 from config.manage_api_client import init_service, get_server_config, get_agent_models
 
@@ -19,17 +20,23 @@ def load_config():
     """加载配置文件"""
     from core.utils.cache.manager import cache_manager, CacheType
 
+    default_config_path = get_project_dir() + "config.yaml"
+    custom_config_path = get_project_dir() + "data/.config.yaml"
+    
+    # 打印加载的配置文件路径（确保一定输出）
+    # print(f"[CONFIG_LOADER] 加载的自定义配置文件路径: {os.path.abspath(custom_config_path)}")
+
     # 检查缓存
     cached_config = cache_manager.get(CacheType.CONFIG, "main_config")
     if cached_config is not None:
+        print("[CONFIG_LOADER] 使用缓存的配置")
         return cached_config
-
-    default_config_path = get_project_dir() + "config.yaml"
-    custom_config_path = get_project_dir() + "data/.config.yaml"
 
     # 加载默认配置
     default_config = read_config(default_config_path)
     custom_config = read_config(custom_config_path)
+    
+    print(f"[CONFIG_LOADER] 自定义配置加载完成，websocket地址: {custom_config.get('server', {}).get('websocket', 'N/A')}")
 
     if custom_config.get("manager-api", {}).get("url"):
         import asyncio
