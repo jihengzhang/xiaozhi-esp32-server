@@ -67,9 +67,12 @@ selected_module:
   ASR: FunASRServer
   LLM: AliCloudLLM
 server:
-  ota_url: https://192.168.1.100:8003/xiaozhi/ota/
-  vision_explain: https://192.168.1.100:8003/mcp/vision/explain
-  websocket: wss://192.168.1.100:8000/xiaozhi/v1/
+  ota_url: https://192.168.0.114:8003/xiaozhi/ota/
+  vision_explain: https://192.168.0.114:8003/mcp/vision/explain
+  websocket: wss://192.168.0.114:8000/xiaozhi/v1/
+  # ota_url: https://192.168.1.100:8003/xiaozhi/ota/
+  # vision_explain: https://192.168.1.100:8003/mcp/vision/explain
+  # websocket: wss://192.168.1.100:8000/xiaozhi/v1/
 tts_audio_send_delay: 0
 tts_timeout: 20
 wakeup_words:
