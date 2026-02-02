@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WSS 连接测试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 80px;
+            font-family: monospace;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .btn-connect {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-connect:hover {
+            background: #45a049;
+        }
+        .btn-disconnect {
+            background: #f44336;
+            color: white;
+        }
+        .btn-disconnect:hover {
+            background: #da190b;
+        }
+        .btn-send {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-send:hover {
+            background: #0b7dda;
+        }
+        .btn-clear {
+            background: #9E9E9E;
+            color: white;
+        }
+        .btn-clear:hover {
+            background: #757575;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status.connecting {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        .log-container {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+        .log-entry.info {
+            color: #64b5f6;
+        }
+        .log-entry.success {
+            color: #81c784;
+        }
+        .log-entry.error {
+            color: #e57373;
+        }
+        .log-entry.data {
+            color: #ffd54f;
+        }
+        .timestamp {
+            color: #90a4ae;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket 测试工具</h1>
+        
+        <div class="input-group">
+            <label for="wsUrl">WebSocket 地址:</label>
+            <input type="text" id="wsUrl" value="wss://192.168.1.100:8000/xiaozhi/v1/" placeholder="wss://...">
+        </div>
+
+        <div id="status" class="status disconnected">● 未连接</div>
+
+        <div class="button-group">
+            <button class="btn-connect" onclick="connect()">连接</button>
+            <button class="btn-disconnect" onclick="disconnect()">断开</button>
+            <button class="btn-clear" onclick="clearLog()">清空日志</button>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-send" onclick="tryWS()">🔧 尝试 ws:// (非加密)</button>
+            <button class="btn-send" onclick="testServer()">🔍 测试服务器</button>
+            <button class="btn-send" onclick="showDiagnostics()">📊 诊断信息</button>
+        </div>
+
+        <div class="input-group">
+            <label for="message">发送消息:</label>
+            <textarea id="message" placeholder='输入消息，例如: {"type":"ping"}'></textarea>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-send" onclick="sendMessage()">发送消息</button>
+        </div>
+
+        <div class="input-group">
+            <label>连接日志:</label>
+            <div id="log" class="log-container"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 3;
+        let connectionStartTime = null;
+        let messagesSent = 0;
+        let messagesReceived = 0;
+        let bytesReceived = 0;
+        let bytesSent = 0;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const now = new Date();
+            const timestamp = now.toLocaleTimeString('zh-CN', { hour12: false }) + '.' + now.getMilliseconds().toString().padStart(3, '0');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            // 同时输出到浏览器控制台
+            const consoleMsg = `[${timestamp}] ${message.replace(/<[^>]*>/g, '')}`;
+            switch(type) {
+                case 'error':
+                    console.error(consoleMsg);
+                    break;
+                case 'success':
+                    console.log('%c' + consoleMsg, 'color: green');
+                    break;
+                case 'data':
+                    console.log('%c' + consoleMsg, 'color: orange');
+                    break;
+                default:
+                    console.log(consoleMsg);
+            }
+        }
+
+        function getReadyStateText(state) {
+            const states = {
+                0: 'CONNECTING',
+                1: 'OPEN',
+                2: 'CLOSING',
+                3: 'CLOSED'
+            };
+            return states[state] || 'UNKNOWN';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        function updateStatus(status, text) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = text;
+        }
+
+        function connect() {
+            const url = document.getElementById('wsUrl').value.trim();
+            
+            if (!url) {
+                log('❌ 请输入 WebSocket 地址', 'error');
+                return;
+            }
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('⚠️ 已经连接，请先断开', 'error');
+                return;
+            }
+
+            try {
+                // 重置统计
+                messagesSent = 0;
+                messagesReceived = 0;
+                bytesReceived = 0;
+                bytesSent = 0;
+                connectionStartTime = Date.now();
+                
+                updateStatus('connecting', '● 连接中...');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                log(`🔄 开始连接: ${url}`, 'info');
+                
+                // 解析 URL 详情
+                try {
+                    const urlObj = new URL(url);
+                    log(`📋 协议: ${urlObj.protocol}`, 'info');
+                    log(`📋 主机: ${urlObj.hostname}`, 'info');
+                    log(`📋 端口: ${urlObj.port || (urlObj.protocol === 'wss:' ? '443' : '80')}`, 'info');
+                    log(`📋 路径: ${urlObj.pathname}`, 'info');
+                } catch (e) {
+                    log(`⚠️ URL 解析警告: ${e.message}`, 'error');
+                }
+                
+                ws = new WebSocket(url);
+                log(`📊 WebSocket 对象已创建`, 'info');
+                log(`📊 初始状态: ${getReadyStateText(ws.readyState)} (${ws.readyState})`, 'info');
+
+                // 状态变化监控
+                let lastState = ws.readyState;
+                const stateChecker = setInterval(() => {
+                    if (ws && ws.readyState !== lastState) {
+                        log(`🔄 状态变化: ${getReadyStateText(lastState)} → ${getReadyStateText(ws.readyState)}`, 'info');
+                        lastState = ws.readyState;
+                    }
+                    if (!ws || ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CLOSED) {
+                        clearInterval(stateChecker);
+                    }
+                }, 100);
+
+                ws.onopen = function(event) {
+                    updateStatus('connected', '● 已连接');
+                    reconnectAttempts = 0;
+                    const duration = connectionStartTime ? Date.now() - connectionStartTime : 0;
+
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                    log(`✅ 连接成功 (耗时: ${duration}ms)`, 'success');
+                    log(`📊 当前状态: ${getReadyStateText(ws.readyState)} (${ws.readyState})`, 'success');
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                };
+
+                ws.onmessage = function(event) {
+                    messagesReceived++;
+                    const isString = typeof event.data === 'string';
+                    const dataSize = isString ? new Blob([event.data]).size : (event.data && event.data.size ? event.data.size : 0);
+                    bytesReceived += dataSize;
+
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'data');
+                    log(`📥 接收消息 #${messagesReceived}`, 'data');
+                    log(`📊 数据大小: ${formatBytes(dataSize)}`, 'info');
+                    log(`📊 总接收: ${formatBytes(bytesReceived)}`, 'info');
+
+                    if (isString) {
+                        try {
+                            const jsonData = JSON.parse(event.data);
+                            log(`📦 JSON 数据: ${JSON.stringify(jsonData, null, 2)}`, 'data');
+                        } catch (e) {
+                            log(`📦 原始数据: ${event.data.substring(0, 500)}${event.data.length > 500 ? '...' : ''}`, 'data');
+                        }
+                    } else {
+                        log(`📦 二进制数据: ${formatBytes(dataSize)}`, 'data');
+                    }
+
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'data');
+                };
+
+                ws.onerror = function(error) {
+                    const duration = connectionStartTime ? Date.now() - connectionStartTime : 0;
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                    log(`❌ WebSocket 错误 (耗时: ${duration}ms)`, 'error');
+                    log(`📊 当前状态: ${getReadyStateText(ws.readyState)} (${ws.readyState})`, 'error');
+                    log(`📊 错误对象: ${JSON.stringify(error)}`, 'error');
+                    log(`📊 错误信息: ${error.message || '未提供详细信息'}`, 'error');
+                    log(`📊 错误类型: ${error.type || '未知'}`, 'error');
+                    
+                    // 常见错误提示
+                    log('', 'error');
+                    log('🔍 可能的原因:', 'error');
+                    log('  1️⃣ 服务器未启动或未监听该地址', 'error');
+                    log('  2️⃣ SSL/TLS 证书无效或自签名', 'error');
+                    log('  3️⃣ 防火墙或网络限制', 'error');
+                    log('  4️⃣ CORS 策略阻止（检查服务器配置）', 'error');
+                    log('  5️⃣ WebSocket 路径错误', 'error');
+                    log('  6️⃣ 协议不匹配（ws vs wss）', 'error');
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                    
+                    console.error('完整错误对象:', error);
+                };
+
+                ws.onclose = function(event) {
+                    const duration = connectionStartTime ? Date.now() - connectionStartTime : 0;
+                    updateStatus('disconnected', '● 未连接');
+                    
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                    log(`🔴 连接已关闭 (总耗时: ${duration}ms)`, 'error');
+                    log(`📊 关闭代码: ${event.code}`, 'error');
+                    log(`📊 关闭原因: ${event.reason || '无原因'}`, 'error');
+                    log(`📊 是否正常: ${event.wasClean ? '是' : '否'}`, 'error');
+                    
+                    // 关闭代码说明
+                    const closeCodes = {
+                        1000: '正常关闭 - 连接目的已达成',
+                        1001: '端点离开 - 服务器关闭或浏览器离开页面',
+                        1002: '协议错误 - 端点因协议错误终止连接',
+                        1003: '不支持的数据 - 收到不支持的数据类型',
+                        1006: '连接异常关闭 - 未收到关闭帧（网络问题）',
+                        1007: '数据格式错误 - 消息数据不一致',
+                        1008: '违反策略 - 消息违反策略',
+                        1009: '消息太大 - 数据帧太大',
+                        1010: '缺少扩展 - 客户端期望协商扩展',
+                        1011: '内部错误 - 服务器遇到意外情况',
+                        1015: 'TLS 握手失败 - SSL/TLS 协商失败'
+                    };
+                    
+                    if (closeCodes[event.code]) {
+                        log(`📖 代码说明: ${closeCodes[event.code]}`, 'info');
+                    }
+                    
+                    // 统计信息
+                    log('', 'info');
+                    log('📊 会话统计:', 'info');
+                    log(`  ↗️ 发送消息: ${messagesSent} 条 (${formatBytes(bytesSent)})`, 'info');
+                    log(`  ↙️ 接收消息: ${messagesReceived} 条 (${formatBytes(bytesReceived)})`, 'info');
+                    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                    
+                    if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        log(`🔄 将在 3 秒后尝试重连 (${reconnectAttempts}/${maxReconnectAttempts})...`, 'info');
+                        setTimeout(connect, 3000);
+                    }
+                };
+
+            } catch (error) {
+                updateStatus('disconnected', '● 未连接');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                log(`❌ 创建 WebSocket 失败`, 'error');
+                log(`📊 错误类型: ${error.name}`, 'error');
+                log(`📊 错误信息: ${error.message}`, 'error');
+                log(`📊 错误堆栈: ${error.stack}`, 'error');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                console.error('完整错误:', error);
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                log('🔌 用户主动断开连接', 'info');
+                log(`📊 当前状态: ${getReadyStateText(ws.readyState)} (${ws.readyState})`, 'info');
+                reconnectAttempts = maxReconnectAttempts; // 阻止自动重连
+                ws.close(1000, '用户主动断开');
+                log('✅ 断开命令已发送', 'info');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            } else {
+                log('⚠️ 没有活动的连接', 'error');
+            }
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('message').value.trim();
+            
+            if (!message) {
+                log('⚠️ 请输入要发送的消息', 'error');
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log(`❌ 连接未建立，无法发送消息 (当前状态: ${ws ? getReadyStateText(ws.readyState) : '无连接'})`, 'error');
+                return;
+            }
+
+            try {
+                messagesSent++;
+                const dataSize = new Blob([message]).size;
+                bytesSent += dataSize;
+                
+                const sendTime = Date.now();
+                ws.send(message);
+                const sendDuration = Date.now() - sendTime;
+                
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                log(`📤 发送消息 #${messagesSent}`, 'success');
+                log(`📊 数据大小: ${formatBytes(dataSize)}`, 'info');
+                log(`📊 发送耗时: ${sendDuration}ms`, 'info');
+                log(`📊 缓冲数据: ${ws.bufferedAmount} 字节`, 'info');
+                log(`📊 总发送: ${formatBytes(bytesSent)}`, 'info');
+                
+                // 尝试解析 JSON
+                try {
+                    const jsonData = JSON.parse(message);
+                    log(`📦 JSON 数据: ${JSON.stringify(jsonData, null, 2)}`, 'success');
+                } catch (e) {
+                    log(`📦 原始数据: ${message.substring(0, 500)}${message.length > 500 ? '...' : ''}`, 'success');
+                }
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+                
+            } catch (error) {
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                log(`❌ 发送失败`, 'error');
+                log(`📊 错误信息: ${error.message}`, 'error');
+                log(`📊 错误类型: ${error.name}`, 'error');
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                console.error('发送错误:', error);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            log('📝 日志已清空', 'info');
+        }
+
+        // 尝试使用 ws:// 协议（非加密）
+        function tryWS() {
+            const currentUrl = document.getElementById('wsUrl').value;
+            const newUrl = currentUrl.replace('wss://', 'ws://');
+            document.getElementById('wsUrl').value = newUrl;
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            log('🔧 已切换到 ws:// 协议（非加密）', 'info');
+            log(`新地址: ${newUrl}`, 'info');
+            log('💡 点击"连接"按钮测试', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        }
+
+        // 测试服务器连通性
+        function testServer() {
+            const url = document.getElementById('wsUrl').value;
+            try {
+                const urlObj = new URL(url);
+                const host = urlObj.hostname;
+                const port = urlObj.port || (urlObj.protocol === 'wss:' ? '443' : '80');
+                
+                log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                log('🔍 开始测试服务器连通性...', 'info');
+                log(`主机: ${host}`, 'info');
+                log(`端口: ${port}`, 'info');
+                
+                // 尝试 HTTP 请求测试
+                const testUrl = `${urlObj.protocol === 'wss:' ? 'https:' : 'http:'}//${host}:${port}`;
+                fetch(testUrl, { method: 'HEAD', mode: 'no-cors' })
+                    .then(() => {
+                        log('✅ 服务器可访问（端口开放）', 'success');
+                        log('💡 问题可能是：', 'info');
+                        log('  • WebSocket 路径错误', 'info');
+                        log('  • SSL 证书问题（如果使用 wss://）', 'info');
+                        log('  • WebSocket 服务未启用', 'info');
+                        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+                    })
+                    .catch(error => {
+                        log('❌ 无法连接到服务器', 'error');
+                        log(`错误: ${error.message}`, 'error');
+                        log('💡 可能原因：', 'error');
+                        log('  • 服务器未启动', 'error');
+                        log('  • 端口未开放', 'error');
+                        log('  • 防火墙阻止', 'error');
+                        log('  • IP 地址或端口错误', 'error');
+                        log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'error');
+                    });
+            } catch (error) {
+                log(`❌ URL 格式错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示诊断信息
+        function showDiagnostics() {
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            log('📊 完整诊断信息', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+            log('', 'info');
+            
+            log('🌐 浏览器环境:', 'info');
+            log(`  • User Agent: ${navigator.userAgent}`, 'info');
+            log(`  • 平台: ${navigator.platform}`, 'info');
+            log(`  • 语言: ${navigator.language}`, 'info');
+            log(`  • 在线状态: ${navigator.onLine ? '在线' : '离线'}`, 'info');
+            log(`  • Cookie 启用: ${navigator.cookieEnabled ? '是' : '否'}`, 'info');
+            log('', 'info');
+            
+            log('🔌 WebSocket 支持:', 'info');
+            log(`  • WebSocket: ${typeof WebSocket !== 'undefined' ? '✅ 支持' : '❌ 不支持'}`, 'info');
+            if (typeof WebSocket !== 'undefined') {
+                log(`  • CONNECTING: ${WebSocket.CONNECTING}`, 'info');
+                log(`  • OPEN: ${WebSocket.OPEN}`, 'info');
+                log(`  • CLOSING: ${WebSocket.CLOSING}`, 'info');
+                log(`  • CLOSED: ${WebSocket.CLOSED}`, 'info');
+            }
+            log('', 'info');
+            
+            log('🔒 安全上下文:', 'info');
+            log(`  • 当前协议: ${window.location.protocol}`, 'info');
+            log(`  • 安全上下文: ${window.isSecureContext ? '✅ 是' : '❌ 否'}`, 'info');
+            log(`  • HTTPS: ${window.location.protocol === 'https:' ? '是' : '否'}`, 'info');
+            log('', 'info');
+            
+            const url = document.getElementById('wsUrl').value;
+            if (url) {
+                try {
+                    const urlObj = new URL(url);
+                    log('🎯 目标服务器信息:', 'info');
+                    log(`  • 完整地址: ${url}`, 'info');
+                    log(`  • 协议: ${urlObj.protocol}`, 'info');
+                    log(`  • 主机: ${urlObj.hostname}`, 'info');
+                    log(`  • 端口: ${urlObj.port || (urlObj.protocol === 'wss:' ? '443 (默认)' : '80 (默认)')}`, 'info');
+                    log(`  • 路径: ${urlObj.pathname}`, 'info');
+                    log(`  • 是否加密: ${urlObj.protocol === 'wss:' ? '是 (需要 SSL 证书)' : '否'}`, 'info');
+                } catch (e) {
+                    log(`❌ URL 解析失败: ${e.message}`, 'error');
+                }
+            }
+            log('', 'info');
+            
+            log('💡 常见问题解决方案:', 'info');
+            log('', 'info');
+            log('1️⃣ 如果使用 wss:// 失败:', 'info');
+            log('   → 点击"🔧 尝试 ws://"按钮切换到非加密连接', 'info');
+            log('', 'info');
+            log('2️⃣ 如果是自签名证书:', 'info');
+            log('   → 先用浏览器访问 https://192.168.1.100:8000', 'info');
+            log('   → 点击"高级"→"继续访问"信任证书', 'info');
+            log('   → 然后再测试 WebSocket', 'info');
+            log('', 'info');
+            log('3️⃣ 如果服务器在本机:', 'info');
+            log('   → 尝试使用 localhost 或 127.0.0.1', 'info');
+            log('   → 示例: ws://localhost:8000/xiaozhi/v1/', 'info');
+            log('', 'info');
+            log('4️⃣ 检查服务器是否运行:', 'info');
+            log('   → 点击"🔍 测试服务器"按钮', 'info');
+            log('   → 或在 PowerShell 运行: Test-NetConnection -ComputerName 192.168.1.100 -Port 8000', 'info');
+            log('', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'info');
+        }
+
+        // 页面加载时的提示
+        window.onload = function() {
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+            log('🚀 WebSocket 详细调试工具已就绪', 'success');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+            log('', 'info');
+            log('📋 浏览器信息:', 'info');
+            log(`  浏览器: ${navigator.userAgent}`, 'info');
+            log(`  WebSocket 支持: ${typeof WebSocket !== 'undefined' ? '✅ 是' : '❌ 否'}`, 'info');
+            log(`  当前时间: ${new Date().toLocaleString('zh-CN')}`, 'info');
+            log('', 'info');
+            log('💡 使用说明:', 'info');
+            log('  1️⃣ 输入 WSS 地址', 'info');
+            log('  2️⃣ 点击"连接"按钮', 'info');
+            log('  3️⃣ 查看详细的连接日志', 'info');
+            log('  4️⃣ 所有日志同时输出到浏览器控制台 (F12)', 'info');
+            log('', 'info');
+            log('🔍 调试技巧:', 'info');
+            log('  • 按 F12 打开浏览器开发者工具查看更多信息', 'info');
+            log('  • Network 选项卡可以看到 WebSocket 握手过程', 'info');
+            log('  • Console 选项卡有完整的错误堆栈', 'info');
+            log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'success');
+        };
+
+        // 页面关闭时断开连接
+        window.onbeforeunload = function() {
+            if (ws) {
+                ws.close();
+            }
+        };
+    </script>
+</body>
+</html>

@@ -3,7 +3,9 @@
 # 为 xiaozhi-server 生成 SSL 证书
 # 支持 HTTPS 和 WSS (WebSocket Secure)
 
-CERT_DIR="/home/tester/AI_Tool/xiaozhi-esp32-server_sdk/main/xiaozhi-server/ssl"
+# 获取脚本所在目录的绝对路径
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CERT_DIR="$SCRIPT_DIR/ssl"
 CERT_FILE="$CERT_DIR/server.crt"
 KEY_FILE="$CERT_DIR/server.key"
 
