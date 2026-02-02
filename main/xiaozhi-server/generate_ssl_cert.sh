@@ -4,8 +4,8 @@
 # 支持 HTTPS 和 WSS (WebSocket Secure)
 
 # 获取脚本所在目录的绝对路径
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-CERT_DIR="$SCRIPT_DIR/ssl"
+# SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CERT_DIR="./ssl"
 CERT_FILE="$CERT_DIR/server.crt"
 KEY_FILE="$CERT_DIR/server.key"
 

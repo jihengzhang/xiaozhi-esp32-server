@@ -128,8 +128,11 @@ def main():
     ensure_firewall_ports()
     
     # Check if certificates exist
+    cert_dir = os.path.abspath(os.path.dirname(CERT_FILE))
     if not os.path.exists(CERT_FILE) or not os.path.exists(KEY_FILE):
-        print("❌ SSL certificates not found!")
+        print(f"❌ SSL certificates not found in directory: {cert_dir}")
+        print(f"  Expected cert file: {os.path.abspath(CERT_FILE)}")
+        print(f"  Expected key file:  {os.path.abspath(KEY_FILE)}")
         print("Please run: bash generate_cert.sh")
         return
     
