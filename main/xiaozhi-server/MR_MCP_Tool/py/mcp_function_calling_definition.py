@@ -295,22 +295,22 @@ def set_scan_parameters(sequence: str, tr: float=1000.0, te: float=30.0, flip_an
     """
     return f"Parameters set: {sequence} (TR={tr}ms, TE={te}ms, FA={flip_angle}°)"
 
-# MR 特定工具：获取患者线缆位置
+# MR 特定工具：获取患者移动床位置
 @server.tool()
-def get_cable_position() -> str:
+def get_Table_position() -> str:
     """
-    获取患者线缆当前位置。
+    获取患者移动床当前位置。
     
     Returns:
-        str: 线缆位置信息 (0-100%)
+        str: 移动床位置信息 (0-100%)
     """
-    return "Cable position: 50%"
+    return "Table position: 50%"
 
-# MR 特定工具：移动患者线缆
+# MR 特定工具：移动患者移动床
 @server.tool()
-def move_cable(position: float=50.0, speed: str="normal") -> str:
+def move_Table(position: float=50.0, speed: str="normal") -> str:
     """
-    移动患者线缆到指定位置。
+    移动患者移动床到指定位置。
     
     Parameters:
         position (float): 目标位置百分比 (0-100)
@@ -319,18 +319,18 @@ def move_cable(position: float=50.0, speed: str="normal") -> str:
     Returns:
         str: 操作确认消息
     """
-    return f"Moving cable to {position}% at {speed} speed"
+    return f"Moving Table to {position}% at {speed} speed"
 
-# MR 特定工具：检查线缆安全限制
+# MR 特定工具：检查移动床安全限制
 @server.tool()
-def check_cable_limits() -> str:
+def check_Table_limits() -> str:
     """
-    检查患者线缆是否触发安全限制。
+    检查患者移动床是否触发安全限制。
     
     Returns:
         str: 安全状态确认
     """
-    return "Cable within safe limits"
+    return "Table within safe limits"
 
 # MR 特定工具：获取设备信息
 @server.tool()
