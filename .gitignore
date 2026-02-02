@@ -27,6 +27,11 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+#server certification
+*.pem
+*.cer
+*.key
+main/xiaozhi-server/MR_MCP_Tool/ssl/*.pem
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -145,7 +150,7 @@ cython_debug/
 tmp
 .history
 .DS_Store
-main/xiaozhi-server/data
+# main/xiaozhi-server/data
 
 main/manager-web/node_modules
 # .config.yaml
@@ -184,3 +189,6 @@ uploadfile
 !main/manager-mobile/**/.env*
 !main/manager-mobile/**/*.json
 !main/xiaozhi-server/**/*.json
+
+main/xiaozhi-server/ssl/server.crt
+main/xiaozhi-server/ssl/server.key

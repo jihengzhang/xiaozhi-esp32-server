@@ -9,7 +9,9 @@ PID_DIR="$SCRIPT_DIR/.pids"
 mkdir -p "$LOG_DIR" "$PID_DIR"
 
 # 服务配置
-CONDA_PYTHON="/home/tester/miniconda3/envs/audio_env/bin/python"
+CONDA_PYTHON="/home/tester/miniconda3/envs/audio_env/bin/python"  #this is env for Z8G4-H
+# CONDA_PYTHON="/home/tester/miniconda3/envs/audio_env/bin/python"  #this is env for Z8G4-H
+# CONDA_PYTHON="/home/tester/anaconda3/envs/env_asr/bin/python"  #this is env for Z8G4-M
 
 declare -A SERVICES=(
     ["ai_server"]="$CONDA_PYTHON -u app.py|$SCRIPT_DIR|ai_server"

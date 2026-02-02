@@ -322,18 +322,29 @@ export class UIController {
         const recordButton = document.getElementById('recordButton');
         let isSpacePressed = false;
 
-        // Spacebar press to start recording
+        // Helper function to check if we're on the Voice message page
+        const isOnVoiceMessagePage = () => {
+            // Get the voice tab content div
+            const voiceTab = document.getElementById('voiceTab');
+            if (!voiceTab) {
+                return false;
+            }
+            // Check if voiceTab has the 'active' class
+            return voiceTab.classList.contains('active');
+        };
+
+        // Spacebar press to start recording (only on Voice message page)
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && !isSpacePressed && !audioRecorder.isRecording) {
+            if (e.code === 'Space' && !isSpacePressed && !audioRecorder.isRecording && isOnVoiceMessagePage()) {
                 e.preventDefault(); // Prevent page scroll
                 isSpacePressed = true;
                 audioRecorder.start();
             }
         });
 
-        // Spacebar release to stop recording
+        // Spacebar release to stop recording (only on Voice message page)
         document.addEventListener('keyup', (e) => {
-            if (e.code === 'Space' && isSpacePressed && audioRecorder.isRecording) {
+            if (e.code === 'Space' && isSpacePressed && audioRecorder.isRecording && isOnVoiceMessagePage()) {
                 e.preventDefault();
                 isSpacePressed = false;
                 audioRecorder.stop();

@@ -84,18 +84,24 @@ async def main():
     http_protocol = "https" if ssl_enabled else "http"
     ws_protocol = "wss" if ssl_enabled else "ws"
     
+    # 获取OTA URL：优先使用配置文件中的值，其次使用本地IP构建
+    ota_url = config.get("server", {}).get("ota_url", None)
+    if not ota_url:
+        ota_url = f"{http_protocol}://{get_local_ip()}:{port}/xiaozhi/ota/"
+    
+    # 获取Vision分析接口URL：优先使用配置文件中的值，其次使用本地IP构建
+    vision_explain_url = config.get("server", {}).get("vision_explain", "")
+    if "你的" in vision_explain_url:
+        vision_explain_url = f"http://{get_local_ip()}:{port}/mcp/vision/explain"
+    
     if not read_config_from_api:
         logger.bind(tag=TAG).info(
-            "OTA接口是\t\t{}://{}:{}/xiaozhi/ota/",
-            http_protocol,
-            get_local_ip(),
-            port,
+            "OTA接口是\t\t{}",
+            ota_url,
         )
     logger.bind(tag=TAG).info(
-        "视觉分析接口是\t{}://{}:{}/mcp/vision/explain",
-        http_protocol,
-        get_local_ip(),
-        port,
+        "视觉分析接口是\t{}",
+        vision_explain_url,
     )
     mcp_endpoint = config.get("mcp_endpoint", None)
     if mcp_endpoint is not None and "你" not in mcp_endpoint:
@@ -115,11 +121,24 @@ async def main():
     if isinstance(server_config, dict):
         websocket_port = int(server_config.get("port", 8000))
 
+    # 获取WebSocket URL：优先使用配置文件中的websocket值，其次使用本地IP构建
+    websocket_url = server_config.get("websocket", None)
+    if not websocket_url:
+        websocket_url = f"{ws_protocol}://{get_local_ip()}:{websocket_port}/xiaozhi/v1/"
+    else:
+        # 确保 websocket_url 中的协议与 SSL 设置匹配
+        # 如果配置中使用了 ws:// 但 SSL 已启用，自动升级到 wss://
+        if ssl_enabled and websocket_url.startswith("ws://"):
+            websocket_url = websocket_url.replace("ws://", "wss://", 1)
+            logger.bind(tag=TAG).info("✓ WebSocket协议自动升级: ws:// → wss://（SSL已启用）")
+        # 如果 SSL 未启用但配置中使用了 wss://，降级到 ws://
+        elif not ssl_enabled and websocket_url.startswith("wss://"):
+            websocket_url = websocket_url.replace("wss://", "ws://", 1)
+            logger.bind(tag=TAG).info("✓ WebSocket协议自动降级: wss:// → ws://（SSL未启用）")
+
     logger.bind(tag=TAG).info(
-        "Websocket地址是\t{}://{}:{}/xiaozhi/v1/",
-        ws_protocol,
-        get_local_ip(),
-        websocket_port,
+        "Websocket地址是\t{}",
+        websocket_url,
     )
 
     logger.bind(tag=TAG).info(
