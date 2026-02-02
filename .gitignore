@@ -153,7 +153,7 @@ tmp
 # main/xiaozhi-server/data
 
 main/manager-web/node_modules
-# .config.yaml
+.config.yaml
 .secrets.yaml
 .private_config.yaml
 .env.development
@@ -176,6 +176,9 @@ my_wakeup_words.mp3
 # Ignore webpack cache directory
 main/manager-web/.webpack_cache/
 main/xiaozhi-server/mysql
+main/xiaozhi-server/ssl
+main/xiaozhi-server/MR_MCP_Tool/ssl
+main/xiaozhi-server/data/.config.yaml
 uploadfile
 # *.json
 # .vscode
@@ -190,5 +193,6 @@ uploadfile
 !main/manager-mobile/**/*.json
 !main/xiaozhi-server/**/*.json
 
-main/xiaozhi-server/ssl/server.crt
-main/xiaozhi-server/ssl/server.key
+
+
+

@@ -52,12 +52,34 @@ def load_config():
     else:
         # 合并配置
         config = merge_configs(default_config, custom_config)
+    # 规范化SSL证书路径（支持相对路径）
+    normalize_ssl_paths(config)
+
     # 初始化目录
     ensure_directories(config)
 
     # 缓存配置
     cache_manager.set(CacheType.CONFIG, "main_config", config)
     return config
+
+
+def normalize_ssl_paths(config):
+    """将SSL证书相对路径转换为项目目录下的绝对路径"""
+    server_config = config.get("server", {})
+    ssl_config = server_config.get("ssl", {})
+    project_dir = get_project_dir()
+
+    cert_file = ssl_config.get("cert_file")
+    key_file = ssl_config.get("key_file")
+
+    if cert_file and not os.path.isabs(cert_file):
+        ssl_config["cert_file"] = os.path.join(project_dir, cert_file)
+
+    if key_file and not os.path.isabs(key_file):
+        ssl_config["key_file"] = os.path.join(project_dir, key_file)
+
+    server_config["ssl"] = ssl_config
+    config["server"] = server_config
 
 
 async def get_config_from_api_async(config):
